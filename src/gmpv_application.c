@@ -112,6 +112,10 @@ static void migrate_config()
 
 static void initialize_gui(GmpvApplication *app)
 {
+	g_log (G_LOG_DOMAIN,
+	       G_LOG_LEVEL_INFO,
+	       "Init gui");
+
 	GmpvController *controller;
 	GmpvView *view;
 	GSettings *settings;
@@ -168,6 +172,10 @@ static void new_window_handler(	GSimpleAction *simple,
 static void activate_handler(GApplication *gapp, gpointer data)
 {
 	GmpvApplication *app = data;
+
+	g_log (G_LOG_DOMAIN,
+	       G_LOG_LEVEL_INFO,
+	       "Hit activate handler");
 
 	if(!app->controllers || app->new_window)
 	{
@@ -360,7 +368,13 @@ static void gmpv_application_class_init(GmpvApplicationClass *klass)
 
 static void gmpv_application_init(GmpvApplication *app)
 {
-	GSimpleAction *new_window = g_simple_action_new("new-window", NULL);
+	GApplicationClass *application_class = G_APPLICATION_CLASS(app);
+	application_class->activate = activate_handler;
+	application_class->handle_local_options = options_handler;
+	application_class->command_line = command_line_handler;
+	application_class->startup = startup_handler;
+	application_class->open = open_handler;
+
 
 	app->controllers = NULL;
 	app->enqueue = FALSE;
@@ -368,7 +382,6 @@ static void gmpv_application_init(GmpvApplication *app)
 	app->action_queue = g_queue_new();
 	app->inhibit_cookie = 0;
 
-	g_action_map_add_action(G_ACTION_MAP(app), G_ACTION(new_window));
 
 	g_application_add_main_option
 		(	G_APPLICATION(app),
@@ -403,18 +416,11 @@ static void gmpv_application_init(GmpvApplication *app)
 			_("Don't connect to an already-running instance"),
 			NULL );
 
+	GSimpleAction *new_window = g_simple_action_new("new-window", NULL);
 	g_signal_connect
 		(new_window, "activate", G_CALLBACK(new_window_handler), app);
-	g_signal_connect
-		(app, "handle-local-options", G_CALLBACK(options_handler), app);
-	g_signal_connect
-		(app, "command-line", G_CALLBACK(command_line_handler), app);
-	g_signal_connect
-		(app, "startup", G_CALLBACK(startup_handler), app);
-	g_signal_connect
-		(app, "activate", G_CALLBACK(activate_handler), app);
-	g_signal_connect
-		(app, "open", G_CALLBACK(open_handler), app);
+	g_action_map_add_action(G_ACTION_MAP(app), G_ACTION(new_window));
+	g_object_unref(new_window);
 }
 
 GmpvApplication *gmpv_application_new(gchar *id, GApplicationFlags flags)
